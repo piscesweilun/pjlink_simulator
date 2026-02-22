@@ -1,0 +1,21 @@
+services:
+  projector_a:
+    build: .
+    restart: always
+    ports:
+      - "4352:4352"  # 外面 4352 -> 裡面 4352
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PJLINK_NAME=Projector_A
+    # (PJLINK_PORT 變數拿掉也沒關係，讓它用預設的)
+
+  projector_b:
+    build: .
+    restart: always
+    ports:
+      - "4353:4352"  # 關鍵修改！外面 4353 -> 裡面 4352
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PJLINK_NAME=Projector_B
