@@ -4,10 +4,12 @@ services:
     restart: always
     ports:
       - "4352:4352"  # 外面 4352 -> 裡面 4352
+      - "4352:4352/udp"  # PJLink Class 2 discovery
     volumes:
       - ./data:/app/data
     environment:
       - PJLINK_NAME=Projector_A
+      - PJLINK_STATE_DIR=/app/data
     # (PJLINK_PORT 變數拿掉也沒關係，讓它用預設的)
 
   projector_b:
@@ -15,7 +17,9 @@ services:
     restart: always
     ports:
       - "4353:4352"  # 關鍵修改！外面 4353 -> 裡面 4352
+      - "4353:4352/udp"  # PJLink Class 2 discovery
     volumes:
       - ./data:/app/data
     environment:
       - PJLINK_NAME=Projector_B
+      - PJLINK_STATE_DIR=/app/data
