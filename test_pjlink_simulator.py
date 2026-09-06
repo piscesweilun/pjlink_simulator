@@ -3,7 +3,9 @@ import os
 import socket
 import tempfile
 import threading
+import time
 import unittest
+from unittest.mock import patch
 
 from pjlink_simulator import PJLinkSimulator
 
@@ -22,6 +24,17 @@ class PJLinkSimulatorTests(unittest.TestCase):
 
     def test_advertises_class_2(self):
         self.assertEqual(self.simulator.process_command("%1CLSS ?"), "%1CLSS=2")
+
+    def test_response_delay_configuration(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(PJLinkSimulator(state_dir=self.temp_dir.name).response_delay, 1)
+        with patch.dict(os.environ, {"PJLINK_RESPONSE_DELAY": "0.25"}):
+            self.assertEqual(PJLinkSimulator(state_dir=self.temp_dir.name).response_delay, 0.25)
+            self.assertEqual(PJLinkSimulator(state_dir=self.temp_dir.name, response_delay=0).response_delay, 0)
+        for value in ("-1", "nan", "inf", "-inf", "invalid", ""):
+            with self.subTest(value=value), patch.dict(os.environ, {"PJLINK_RESPONSE_DELAY": value}):
+                with self.assertRaises(ValueError):
+                    PJLinkSimulator(state_dir=self.temp_dir.name)
 
     def test_class_2_queries(self):
         expected = {
@@ -71,7 +84,10 @@ class PJLinkSimulatorTests(unittest.TestCase):
         self.assertIsNone(self.simulator.process_search_datagram(b"%2SRCH\n"))
 
     def test_tcp_handler_supports_fragmented_and_multiple_commands(self):
+        self.simulator.response_delay = 0.05
         server_socket, client_socket = socket.socketpair()
+        self.addCleanup(client_socket.close)
+        client_socket.settimeout(3)
         thread = threading.Thread(
             target=self.simulator.handle_client,
             args=(server_socket, ("local", 0)),
@@ -79,12 +95,14 @@ class PJLinkSimulatorTests(unittest.TestCase):
         thread.start()
         self.assertEqual(client_socket.recv(64), b"PJLINK 0\r")
 
+        started = time.monotonic()
         client_socket.sendall(b"%1CL")
-        client_socket.sendall(b"SS ?\r%2FREZ ?\r")
+        client_socket.sendall(b"SS ?\r%2NOPE ?\r")
         received = b""
         while received.count(b"\r") < 2:
             received += client_socket.recv(128)
-        self.assertEqual(received, b"%1CLSS=2\r%2FREZ=0\r")
+        self.assertEqual(received, b"%1CLSS=2\r%2NOPE=ERR1\r")
+        self.assertGreaterEqual(time.monotonic() - started, 2 * self.simulator.response_delay)
 
         client_socket.close()
         thread.join(timeout=1)

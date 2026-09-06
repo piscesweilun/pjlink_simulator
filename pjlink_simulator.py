@@ -1,10 +1,12 @@
 import hashlib
 import json
 import logging
+import math
 import os
 import random
 import socket
 import threading
+import time
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - [%(name)s] - %(message)s")
@@ -28,7 +30,17 @@ class PJLinkSimulator:
     }
 
     def __init__(self, port=4352, name="MockProjector", state_dir=None,
-                 mac_address=None, notify_host=None, notify_port=4352):
+                 mac_address=None, notify_host=None, notify_port=4352,
+                 response_delay=None):
+        try:
+            self.response_delay = float(
+                response_delay if response_delay is not None
+                else os.environ.get("PJLINK_RESPONSE_DELAY", "1")
+            )
+        except (TypeError, ValueError) as error:
+            raise ValueError("PJLINK_RESPONSE_DELAY must be a finite, non-negative number of seconds") from error
+        if not math.isfinite(self.response_delay) or self.response_delay < 0:
+            raise ValueError("PJLINK_RESPONSE_DELAY must be a finite, non-negative number of seconds")
         self.port = port
         self.name = name
         self.logger = logging.getLogger(self.name)
@@ -132,6 +144,7 @@ class PJLinkSimulator:
                     self.logger.info("收到指令: %s", cmd_line)
                     response = self.process_command(cmd_line)
                     if response is not None:
+                        time.sleep(self.response_delay)
                         conn.sendall(f"{response}\r".encode("utf-8"))
                         self.logger.info("回傳狀態: %s", response)
 

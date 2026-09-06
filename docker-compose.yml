@@ -9,6 +9,7 @@ services:
       - ./data:/app/data
     environment:
       - PJLINK_NAME=Projector_A
+      - PJLINK_RESPONSE_DELAY=${PJLINK_RESPONSE_DELAY:-1}
       - PJLINK_STATE_DIR=/app/data
     # (PJLINK_PORT 變數拿掉也沒關係，讓它用預設的)
 
@@ -22,4 +23,5 @@ services:
       - ./data:/app/data
     environment:
       - PJLINK_NAME=Projector_B
+      - PJLINK_RESPONSE_DELAY=${PJLINK_RESPONSE_DELAY:-1}
       - PJLINK_STATE_DIR=/app/data
